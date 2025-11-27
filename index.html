@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>好胃口周计划</title>
+    
+    <!-- 1. 引入 Tailwind CSS (样式) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. 引入 React 和 ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- 3. 引入 Babel (让浏览器能看懂 JSX) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- 4. 引入 Lucide 图标库 -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        /* 隐藏滚动条但保留功能 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // 获取 React 对象
+        const { useState, useEffect } = React;
+        
+        // 图标组件映射 (因为在浏览器环境，我们需要这样定义图标)
+        const Icons = {
+            Calendar: () => <i data-lucide="calendar" className="w-6 h-6"></i>,
+            ChefHat: ({size, className}) => <i data-lucide="chef-hat" className={className} style={{width: size, height: size}}></i>,
+            ShoppingBag: ({size, className}) => <i data-lucide="shopping-bag" className={className} style={{width: size, height: size}}></i>,
+            Utensils: ({className}) => <i data-lucide="utensils" className={className}></i>,
+            RefreshCw: ({size}) => <i data-lucide="refresh-cw" style={{width: size, height: size}}></i>,
+            ChevronRight: ({size, className}) => <i data-lucide="chevron-right" className={className} style={{width: size, height: size}}></i>,
+            Clock: ({size, className}) => <i data-lucide="clock" className={className} style={{width: size, height: size}}></i>,
+            Flame: ({size, className}) => <i data-lucide="flame" className={className} style={{width: size, height: size}}></i>,
+            Info: ({size, className}) => <i data-lucide="info" className={className} style={{width: size, height: size}}></i>,
+            Heart: ({size}) => <i data-lucide="heart" style={{width: size, height: size}}></i>,
+            X: ({size, className}) => <i data-lucide="x" className={className} style={{width: size, height: size}}></i>,
+            CheckCircle2: ({size, className}) => <i data-lucide="check-circle-2" className={className} style={{width: size, height: size}}></i>,
+            Salad: ({size}) => <i data-lucide="salad" style={{width: size, height: size}}></i>,
+        };
+
+        // --- 数据源 ---
+        const RECIPE_DATABASE = {
+            breakfast: [
+                { id: 'b1', name: '全麦牛油果煎蛋吐司', calories: 350, tags: ['优质脂肪', '快手'], ingredients: ['全麦面包 2片', '牛油果 半个', '鸡蛋 1个', '黑胡椒 少许'], steps: ['面包烤脆', '牛油果捣泥涂抹', '煎一个太阳蛋铺在上面', '撒上黑胡椒'] },
+                { id: 'b2', name: '高蛋白燕麦蓝莓碗', calories: 300, tags: ['高纤维', '抗氧化'], ingredients: ['即食燕麦 50g', '牛奶 200ml', '蓝莓 1把', '蛋白粉 1勺'], steps: ['燕麦加奶煮熟', '拌入蛋白粉', '撒上蓝莓'] },
+                { id: 'b3', name: '中式杂粮粥配水煮蛋', calories: 280, tags: ['养胃', '低脂'], ingredients: ['黑米/红豆 50g', '鸡蛋 1个', '小咸菜'], steps: ['杂粮提前浸泡煮粥', '配一个水煮蛋'] },
+                { id: 'b4', name: '蔬菜鸡胸肉卷饼', calories: 380, tags: ['高蛋白', '饱腹'], ingredients: ['全麦卷饼', '鸡胸肉 50g', '生菜', '低脂酱'], steps: ['鸡胸肉煎熟', '卷入蔬菜和鸡肉'] },
+                { id: 'b5', name: '香蕉坚果酸奶杯', calories: 320, tags: ['益生菌', '快手'], ingredients: ['希腊酸奶', '香蕉', '坚果'], steps: ['层层铺设酸奶和水果', '撒坚果'] }
+            ],
+            lunch: [
+                { id: 'l1', name: '香煎三文鱼配藜麦饭', calories: 550, tags: ['Omega-3', '优质主食'], ingredients: ['三文鱼 150g', '藜麦饭', '西兰花', '柠檬'], steps: ['三文鱼煎黄', '西兰花焯水', '装盘'] },
+                { id: 'l2', name: '去皮照烧鸡腿饭', calories: 600, tags: ['高蛋白', '开胃'], ingredients: ['鸡腿', '杂粮饭', '胡萝卜', '照烧汁'], steps: ['鸡腿煎熟加汁', '配米饭蔬菜'] },
+                { id: 'l3', name: '蒜蓉西蓝花炒虾仁', calories: 450, tags: ['低卡', '鲜美'], ingredients: ['虾仁', '西兰花', '蒜末'], steps: ['虾仁焯水', '蒜末爆香炒菜', '混合调味'] },
+                { id: 'l4', name: '彩椒牛肉粒意面', calories: 580, tags: ['补铁', '西式'], ingredients: ['牛肉', '彩椒', '意面', '黑椒酱'], steps: ['意面煮熟', '牛肉炒熟加彩椒', '混合'] },
+                { id: 'l5', name: '口蘑豆腐煲', calories: 420, tags: ['素食', '鲜美'], ingredients: ['嫩豆腐', '口蘑', '蚝油'], steps: ['豆腐煎黄', '口蘑炒软', '炖煮收汁'] }
+            ],
+            dinner: [
+                { id: 'd1', name: '冬瓜蛤蜊汤配凉拌菜', calories: 300, tags: ['低脂', '去水肿'], ingredients: ['蛤蜊', '冬瓜', '姜丝'], steps: ['冬瓜煮汤', '加蛤蜊煮开口', '调味'] },
+                { id: 'd2', name: '白灼菜心与蒸红薯', calories: 350, tags: ['高纤维', '清肠'], ingredients: ['菜心', '红薯', '豉油'], steps: ['红薯蒸熟', '菜心焯水'] },
+                { id: 'd3', name: '番茄龙利鱼汤', calories: 380, tags: ['好消化', '酸甜'], ingredients: ['龙利鱼', '番茄', '金针菇'], steps: ['番茄炒汁', '加水煮菇', '下鱼片'] },
+                { id: 'd4', name: '日式关东煮(自制)', calories: 400, tags: ['暖胃', '低卡'], ingredients: ['萝卜', '魔芋', '海带', '鱼丸'], steps: ['昆布煮汤', '放入食材煮软'] },
+                { id: 'd5', name: '凉拌鸡丝荞麦面', calories: 420, tags: ['清爽', '夏季'], ingredients: ['鸡胸', '黄瓜', '荞麦面'], steps: ['鸡肉撕丝', '面过凉水', '拌匀'] }
+            ]
+        };
+
+        const WEEK_DAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+
+        // --- 组件 ---
+        const Tag = ({ text, type = 'default' }) => {
+            const colors = {
+                default: 'bg-gray-100 text-gray-600',
+                highlight: 'bg-orange-100 text-orange-600',
+                green: 'bg-green-100 text-green-600',
+            };
+            return <span className={`text-xs px-2 py-1 rounded-full ${colors[type] || colors.default}`}>{text}</span>;
+        };
+
+        const RecipeModal = ({ recipe, onClose }) => {
+            if (!recipe) return null;
+            return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
+                        <div className="relative h-48 bg-orange-50 flex items-center justify-center rounded-t-2xl">
+                           <Icons.ChefHat size={64} className="text-orange-300" />
+                           <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-white/80 rounded-full hover:bg-white transition-colors">
+                             <Icons.X size={20} className="text-gray-600" />
+                           </button>
+                        </div>
+                        <div className="p-6 flex-1">
+                            <div className="flex justify-between items-start mb-2">
+                                <h2 className="text-2xl font-bold text-gray-800">{recipe.name}</h2>
+                                <div className="flex items-center text-orange-500 font-semibold">
+                                    <Icons.Flame size={16} className="mr-1" /> {recipe.calories} kcal
+                                </div>
+                            </div>
+                            <div className="flex gap-2 mb-6 flex-wrap">
+                                {recipe.tags.map(tag => <Tag key={tag} text={tag} type="green" />)}
+                            </div>
+                            <div className="mb-6">
+                                <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center">
+                                    <Icons.ShoppingBag size={18} className="mr-2" /> 食材准备
+                                </h3>
+                                <ul className="space-y-2">
+                                    {recipe.ingredients.map((item, idx) => (
+                                        <li key={idx} className="flex items-center text-gray-600 text-sm">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-orange-400 mr-2"></div>{item}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center">
+                                    <Icons.Clock size={18} className="mr-2" /> 制作步骤
+                                </h3>
+                                <div className="space-y-4">
+                                    {recipe.steps.map((step, idx) => (
+                                        <div key={idx} className="flex gap-3">
+                                            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-bold mt-0.5">{idx + 1}</div>
+                                            <p className="text-gray-600 text-sm leading-relaxed">{step}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-4 border-t border-gray-100">
+                            <button onClick={onClose} className="w-full py-3 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-colors">我学会了</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 主程序 ---
+        function App() {
+            const [activeTab, setActiveTab] = useState('daily');
+            const [currentDayIndex, setCurrentDayIndex] = useState(0);
+            const [weeklyPlan, setWeeklyPlan] = useState({});
+            const [selectedRecipe, setSelectedRecipe] = useState(null);
+            const [generatedList, setGeneratedList] = useState([]);
+
+            // 初始化图标 (Lucide)
+            useEffect(() => {
+                if(window.lucide) window.lucide.createIcons();
+            });
+
+            // 监听 activeTab, currentDayIndex, selectedRecipe 变化时重新渲染图标
+            useEffect(() => {
+                const timer = setTimeout(() => {
+                    if(window.lucide) window.lucide.createIcons();
+                }, 50); // 稍微延迟等待 DOM 更新
+                return () => clearTimeout(timer);
+            }, [activeTab, currentDayIndex, selectedRecipe, weeklyPlan]);
+
+            // 简单的随机算法
+            const generatePlan = () => {
+                const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
+                const plan = {};
+                WEEK_DAYS.forEach(day => {
+                    plan[day] = {
+                        breakfast: shuffle(RECIPE_DATABASE.breakfast)[0],
+                        lunch: shuffle(RECIPE_DATABASE.lunch)[0],
+                        dinner: shuffle(RECIPE_DATABASE.dinner)[0],
+                    };
+                });
+                return plan;
+            };
+
+            const regeneratePlan = () => {
+                const newPlan = generatePlan();
+                setWeeklyPlan(newPlan);
+                
+                // 生成购物清单
+                const list = new Set();
+                Object.values(newPlan).forEach(day => {
+                    Object.values(day).forEach(meal => {
+                        meal.ingredients.forEach(i => list.add(i));
+                    });
+                });
+                setGeneratedList(Array.from(list));
+            };
+
+            useEffect(() => {
+                regeneratePlan();
+            }, []);
+
+            const currentDayName = WEEK_DAYS[currentDayIndex];
+            const currentDayPlan = weeklyPlan[currentDayName];
+
+            if (!currentDayPlan) return <div>Loading...</div>;
+
+            return (
+                <div className="min-h-screen pb-20 md:pb-0 md:pl-20">
+                    {/* Header */}
+                    <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 px-4 py-4 flex justify-between items-center">
+                        <div>
+                            <h1 className="text-xl font-extrabold text-orange-600 flex items-center gap-2">
+                                <Icons.Utensils className="fill-orange-600 text-white" /> 好胃口
+                            </h1>
+                            <p className="text-xs text-gray-400">一周健康食谱计划</p>
+                        </div>
+                        <button onClick={regeneratePlan} className="p-2 bg-orange-50 text-orange-500 rounded-full hover:bg-orange-100">
+                            <Icons.RefreshCw size={20} />
+                        </button>
+                    </header>
+
+                    <RecipeModal recipe={selectedRecipe} onClose={() => setSelectedRecipe(null)} />
+
+                    <main className="max-w-3xl mx-auto p-4">
+                        {/* Daily Tab */}
+                        {activeTab === 'daily' && (
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-center bg-white p-2 rounded-xl shadow-sm overflow-x-auto no-scrollbar">
+                                    {WEEK_DAYS.map((day, idx) => (
+                                        <button key={day} onClick={() => setCurrentDayIndex(idx)} 
+                                            className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all ${idx === currentDayIndex ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}>
+                                            {day}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="space-y-4">
+                                    {[
+                                        { type: 'breakfast', title: '早餐', Icon: Icons.Clock, color: 'text-yellow-600', bg: 'bg-yellow-50' },
+                                        { type: 'lunch', title: '午餐', Icon: Icons.ChefHat, color: 'text-orange-600', bg: 'bg-orange-50' },
+                                        { type: 'dinner', title: '晚餐', Icon: Icons.Salad, color: 'text-green-600', bg: 'bg-green-50' },
+                                    ].map((meal) => {
+                                        const recipe = currentDayPlan[meal.type];
+                                        return (
+                                            <div key={meal.type} onClick={() => setSelectedRecipe(recipe)} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 active:scale-[0.98] transition-transform">
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${meal.bg} ${meal.color}`}>
+                                                        <meal.Icon size={18} /> {meal.title}
+                                                    </span>
+                                                    <Icons.ChevronRight size={18} className="text-gray-300" />
+                                                </div>
+                                                <h3 className="text-lg font-bold text-gray-800 mb-2">{recipe.name}</h3>
+                                                <div className="flex items-center gap-3 text-sm text-gray-500">
+                                                    <span className="flex items-center gap-1"><Icons.Flame size={14} /> {recipe.calories}</span>
+                                                    <span>· {recipe.tags[0]}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* List Tab */}
+                        {activeTab === 'list' && (
+                            <div className="bg-white rounded-2xl shadow-sm p-6 min-h-[60vh]">
+                                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                                    <Icons.ShoppingBag className="text-orange-500" size={24} /> 本周采购清单
+                                </h2>
+                                <div className="space-y-3">
+                                    {generatedList.map((item, idx) => (
+                                        <label key={idx} className="flex items-center p-3 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-100">
+                                            <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500 accent-orange-500" />
+                                            <span className="ml-3 text-gray-600">{item}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Tips Tab */}
+                        {activeTab === 'tips' && (
+                            <div className="space-y-4">
+                                <div className="bg-orange-500 rounded-2xl p-6 text-white shadow-lg">
+                                    <h2 className="text-2xl font-bold mb-2">如何改善胃口？</h2>
+                                    <p className="opacity-90">保持心情愉悦是关键。</p>
+                                </div>
+                                <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                                    <h3 className="font-bold text-gray-800 mb-1 flex items-center gap-2"><Icons.Clock size={16}/> 规律进食</h3>
+                                    <p className="text-sm text-gray-500">每天固定时间吃饭。</p>
+                                </div>
+                                <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                                    <h3 className="font-bold text-gray-800 mb-1 flex items-center gap-2"><Icons.Heart size={16}/> 适度运动</h3>
+                                    <p className="text-sm text-gray-500">饭前散步有助于产生饥饿感。</p>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* Bottom Nav */}
+                    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-3 md:top-0 md:bottom-auto md:w-20 md:h-screen md:flex-col md:border-t-0 md:border-r md:py-8 md:px-0 z-40">
+                        <div className="flex justify-between items-center md:flex-col md:gap-8 md:h-full">
+                            <div className="hidden md:block text-orange-600 mb-6"><Icons.ChefHat size={32} /></div>
+                            <div className="flex justify-between w-full md:flex-col md:gap-8">
+                                <button onClick={() => setActiveTab('daily')} className={`flex flex-col items-center gap-1 ${activeTab === 'daily' ? 'text-orange-500' : 'text-gray-400'}`}>
+                                    <Icons.Calendar size={24} /> <span className="text-[10px]">今日</span>
+                                </button>
+                                <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 ${activeTab === 'list' ? 'text-orange-500' : 'text-gray-400'}`}>
+                                    <Icons.ShoppingBag size={24} /> <span className="text-[10px]">采购</span>
+                                </button>
+                                <button onClick={() => setActiveTab('tips')} className={`flex flex-col items-center gap-1 ${activeTab === 'tips' ? 'text-orange-500' : 'text-gray-400'}`}>
+                                    <Icons.Heart size={24} /> <span className="text-[10px]">健康</span>
+                                </button>
+                            </div>
+                        </div>
+                    </nav>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
